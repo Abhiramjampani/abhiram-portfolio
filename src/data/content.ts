@@ -40,8 +40,7 @@ export const experience: Experience[] = [
     period: "July 2026 — Present",
     location: "India",
     current: true,
-    summary:
-      "Returned full-time to NVIDIA's compiler organisation, working on the CUDA compiler toolchain.",
+    summary: "Shaping the CUDA assembler and disassembler — the last word between code and silicon.",
     points: [],
   },
   {
