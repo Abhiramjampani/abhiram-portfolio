@@ -12,7 +12,7 @@ export const profile = {
 
 export const about = {
   paragraphs: [
-    "I'm a Compiler Engineer at NVIDIA working on CUDA compilers. I do my best work close to the metal — binary formats, concurrency, and correctness in systems where every bug is expensive.",
+    "I'm a Compiler Engineer at NVIDIA working on CUDA compilers. I do my best work close to the metal — binary formats, concurrency, and correctness.",
   ],
   facts: [
     { label: "Current", value: "Compiler Engineer, NVIDIA" },
