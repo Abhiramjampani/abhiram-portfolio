@@ -4,11 +4,12 @@ import { Arrow, GitHub } from "../Icons";
 
 export default function OpenSource() {
   return (
-    <section id="open-source" className="relative mx-auto max-w-6xl px-5 py-24 md:px-10 md:py-32">
+    <section id="open-source" className="relative isolate mx-auto max-w-6xl px-5 py-24 md:px-10 md:py-32">
+      <div className="fog-band" aria-hidden />
       <SectionHeading
-        eyebrow="Deeds Etched in Code"
-        title="Open Source"
-        intro="Contributions to the infrastructure other engineers build on."
+        label="Open Source"
+        title="The White Book"
+        intro="Every deed of the Kingsguard is recorded in the White Book. Mine are recorded in commit history — contributions to infrastructure other engineers build on."
       />
       <div className="grid gap-6 md:grid-cols-3">
         {openSource.map((o) => (

@@ -3,8 +3,9 @@ import SectionHeading from "../SectionHeading";
 
 export default function About() {
   return (
-    <section id="about" className="relative mx-auto max-w-6xl px-5 py-24 md:px-10 md:py-32">
-      <SectionHeading eyebrow="The Maester's Record" title="About" />
+    <section id="about" className="relative isolate mx-auto max-w-6xl px-5 py-24 md:px-10 md:py-32">
+      <div className="fog-band" aria-hidden />
+      <SectionHeading label="About" title="The Maester's Chronicle" />
       <div className="grid gap-10 md:grid-cols-[1.4fr_1fr] md:gap-16">
         <div className="space-y-6">
           {about.paragraphs.map((p, i) => (

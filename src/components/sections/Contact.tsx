@@ -1,4 +1,5 @@
 import { profile } from "@/data/content";
+import SectionHeading from "../SectionHeading";
 import { GitHub, LinkedIn, Mail, Scroll } from "../Icons";
 
 export default function Contact() {
@@ -9,18 +10,16 @@ export default function Contact() {
         <div className="seal mx-auto mb-10 flex h-20 w-20 items-center justify-center rounded-full">
           <span className="font-display text-xl tracking-[0.12em] text-bg">AJ</span>
         </div>
-        <p data-reveal className="eyebrow text-xl">Send a Raven</p>
-        <h2 data-reveal className="font-display metal-text mt-3 text-4xl font-semibold tracking-[0.05em] md:text-6xl">
-          Let&apos;s build something
-        </h2>
-        <p data-reveal className="mx-auto mt-6 max-w-xl leading-relaxed text-muted md:text-lg">
-          Open to conversations on compilers, GPU systems, databases and interesting engineering problems.
-        </p>
-        <div data-reveal className="mt-12 flex flex-wrap justify-center gap-4">
-          <a href={`mailto:${profile.email}`} className="btn btn-primary">
+        <SectionHeading
+          label="Contact"
+          title="Send a Raven"
+          intro="Open to conversations on compilers, GPU systems, databases and interesting engineering problems. My ravens fly swiftly."
+        />
+        <div data-reveal className="-mt-4 flex flex-wrap justify-center gap-4">
+          <a href={`mailto:${profile.email}`} className="btn btn-primary" data-magnetic>
             <Mail className="h-4 w-4" /> Email Me
           </a>
-          <a href={profile.resume} target="_blank" rel="noreferrer" className="btn btn-ghost">
+          <a href={profile.resume} target="_blank" rel="noreferrer" className="btn btn-ghost" data-magnetic>
             <Scroll className="h-4 w-4" /> Résumé
           </a>
         </div>

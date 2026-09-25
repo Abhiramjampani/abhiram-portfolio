@@ -56,13 +56,13 @@ export const experience: Experience[] = [
       "Designed cluster-wide exclusive replication slot acquisition using advisory locks with a stable name-to-integer mapping, eliminating concurrent slot conflicts in multi-tenant environments.",
     ],
     link: {
-      label: "View 11 merged commits",
+      label: "View commits",
       href: "https://github.com/yugabyte/yugabyte-db/commits/master/?author=Abhiramjampani",
     },
   },
   {
     company: "NVIDIA",
-    role: "Software Engineer Intern",
+    role: "Compiler Intern",
     period: "July 2025 — Dec 2025",
     location: "India",
     points: [
@@ -77,7 +77,7 @@ export const openSource = [
   {
     name: "YugabyteDB",
     description:
-      "11 merged commits to the CDC subsystem of the cloud-native distributed SQL database.",
+      "Merged contributions to the CDC subsystem of the cloud-native distributed SQL database.",
     href: "https://github.com/yugabyte/yugabyte-db/commits/master/?author=Abhiramjampani",
     tag: "Distributed SQL",
   },
@@ -122,7 +122,7 @@ export const projects: Project[] = [
     description:
       "A railway search platform whose custom C++ N-API addon computes direct and multi-leg journeys with a meet-in-the-middle algorithm, delivering millisecond-scale route synthesis backed by a Redis cache-aside layer.",
     stack: ["C++", "N-API", "Node.js", "Next.js", "MongoDB", "Redis"],
-    github: "https://github.com/Abhiramjampani/ConnectExpress",
+    github: "https://github.com/TechWizard9999/Connect-Express",
   },
   {
     name: "MediShare",
@@ -131,7 +131,7 @@ export const projects: Project[] = [
       "An AI and OCR-powered platform that reduces medical waste by enabling the verified redistribution of unused, sealed medicines to those who need them.",
     stack: ["React", "Node.js", "OCR", "Google Vision", "MongoDB"],
     github: "https://github.com/Abhiramjampani/MediShare",
-    live: "https://medi-share-umber.vercel.app",
+    live: "https://medishare-codeforge-hackathon.vercel.app/",
   },
 ];
 
@@ -156,9 +156,16 @@ export const skills = [
 
 export const competitive = [
   { platform: "LeetCode", rating: 2139, title: "Guardian", href: "https://leetcode.com/u/Illuminati07/" },
-  { platform: "CodeChef", rating: 2010, title: "5 Star", href: "https://www.codechef.com/users/illuminati_07" },
+  { platform: "CodeChef", rating: 2010, title: "5 Star", href: "https://www.codechef.com/users/abhiramjampani" },
   { platform: "Codeforces", rating: 1554, title: "Specialist", href: "https://codeforces.com/profile/illuminati0_7" },
 ];
+
+export const education = {
+  school: "Indian Institute of Information Technology, Lucknow",
+  degree: "Bachelor of Technology — Computer Science",
+  period: "Nov 2022 — July 2026",
+  coursework: ["Data Structures", "Object-Oriented Programming", "Operating Systems", "Database Management Systems"],
+};
 
 export const leadership = [
   {

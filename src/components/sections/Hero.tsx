@@ -33,8 +33,7 @@ export default function Hero() {
         scrollTrigger: { trigger: root.current, start: "top top", end: "bottom top", scrub: true },
       });
       gsap.to("[data-hero-scene]", {
-        scale: 1.15,
-        autoAlpha: 0.2,
+        autoAlpha: 0.15,
         ease: "none",
         scrollTrigger: { trigger: root.current, start: "top top", end: "bottom top", scrub: true },
       });
@@ -70,10 +69,10 @@ export default function Hero() {
             {profile.tagline}
           </p>
           <div data-hero className="mt-10 flex flex-wrap gap-4">
-            <a href="#experience" className="btn btn-primary pointer-events-auto">
+            <a href="#experience" className="btn btn-primary pointer-events-auto" data-magnetic>
               View Experience
             </a>
-            <a href={profile.resume} target="_blank" rel="noreferrer" className="btn btn-ghost pointer-events-auto">
+            <a href={profile.resume} target="_blank" rel="noreferrer" className="btn btn-ghost pointer-events-auto" data-magnetic>
               Résumé
             </a>
           </div>

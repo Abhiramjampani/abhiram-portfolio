@@ -44,8 +44,9 @@ export default function Competitive() {
   }, []);
 
   return (
-    <section ref={root} className="relative mx-auto max-w-6xl px-5 py-24 md:px-10 md:py-32">
-      <SectionHeading eyebrow="The Tourney" title="Competitive Programming" />
+    <section ref={root} className="relative isolate mx-auto max-w-6xl px-5 py-24 md:px-10 md:py-32">
+      <div className="fog-band" aria-hidden />
+      <SectionHeading label="Competitive Programming" title="Trial by Combat" />
       <div className="grid gap-6 md:grid-cols-3">
         {competitive.map((c) => (
           <a key={c.platform} href={c.href} target="_blank" rel="noreferrer" data-reveal className="panel group flex flex-col items-center p-8 text-center hover:-translate-y-1">
@@ -80,7 +81,7 @@ export default function Competitive() {
       </div>
 
       <div className="mt-24 md:mt-32">
-        <SectionHeading eyebrow="Hand of the Fest" title="Leadership & Honours" />
+        <SectionHeading label="Leadership & Honours" title="Hand of the King" />
         <div className="grid gap-6 md:grid-cols-2">
           {leadership.map((l) => (
             <div key={l.title} data-reveal className="panel p-8">

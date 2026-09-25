@@ -1,44 +1,43 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, Float, Lightformer } from "@react-three/drei";
+import { Environment, Lightformer } from "@react-three/drei";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { House } from "@/lib/house";
 
 /* ------------------------------------------------------------------
-   Per-house look. Everything lerps toward these targets each frame,
-   so switching houses melts smoothly from frost to fire.
+   Per-house look. Lights, fog and particles lerp toward these targets
+   every frame, so switching houses melts from frost into fire.
    ------------------------------------------------------------------ */
 const LOOKS = {
   stark: {
-    egg: new THREE.Color("#d3e4f1"),
-    emissive: new THREE.Color("#6cc0ff"),
-    emissiveIntensity: 1.5,
-    metalness: 0.45,
-    roughness: 0.2,
-    iridescence: 0.7,
-    env: 1.2,
-    rim: new THREE.Color("#8fc6ff"),
-    particle: new THREE.Color("#e8f3ff"),
+    fog: new THREE.Color("#080b10"),
+    beam: new THREE.Color("#bfe0ff"),
+    rim: new THREE.Color("#6fb6ff"),
+    rimIntensity: 60,
+    key: new THREE.Color("#dcecff"),
+    particle: new THREE.Color("#eef6ff"),
+    steel: new THREE.Color("#8a96a3"),
     direction: -1, // snow falls
+    flicker: 0,
   },
   targaryen: {
-    egg: new THREE.Color("#3a0f0a"),
-    emissive: new THREE.Color("#ff5a1f"),
-    emissiveIntensity: 2.6,
-    metalness: 0.85,
-    roughness: 0.34,
-    iridescence: 0,
-    env: 0.45,
-    rim: new THREE.Color("#ff6b2c"),
-    particle: new THREE.Color("#ff9a3c"),
+    fog: new THREE.Color("#090605"),
+    beam: new THREE.Color("#ffb36b"),
+    rim: new THREE.Color("#ff4d1a"),
+    rimIntensity: 90,
+    key: new THREE.Color("#ffd2a1"),
+    particle: new THREE.Color("#ff9440"),
+    steel: new THREE.Color("#6b5f58"),
     direction: 1, // embers rise
+    flicker: 1,
   },
 } as const;
 
-/* Seeded PRNG so procedural content is deterministic across renders. */
+/* Seeded PRNG so the throne is identical on every render. */
 function rng(seed: number) {
   return () => {
     seed |= 0;
@@ -49,160 +48,218 @@ function rng(seed: number) {
   };
 }
 
-/* Procedural dragon-scale textures drawn on a canvas once. */
-function useScaleTextures() {
-  return useMemo(() => {
-    const random = rng(7);
-    const size = 1024;
-    const make = () => {
-      const c = document.createElement("canvas");
-      c.width = c.height = size;
-      return [c, c.getContext("2d")!] as const;
-    };
-    const [colorC, color] = make();
-    const [bumpC, bump] = make();
-    const [emC, em] = make();
+/* A single longsword pointing along +Y, pommel at the origin. */
+function makeSwordGeometry() {
+  const blade = new THREE.Shape();
+  blade.moveTo(-0.042, 0.36);
+  blade.lineTo(0.042, 0.36);
+  blade.lineTo(0.034, 1.82);
+  blade.lineTo(0, 2.0);
+  blade.lineTo(-0.034, 1.82);
+  blade.closePath();
+  const bladeGeo = new THREE.ExtrudeGeometry(blade, {
+    depth: 0.01,
+    bevelEnabled: true,
+    bevelThickness: 0.007,
+    bevelSize: 0.008,
+    bevelSegments: 1,
+  });
+  bladeGeo.translate(0, 0, -0.005);
 
-    color.fillStyle = "#2a2a2a";
-    color.fillRect(0, 0, size, size);
-    bump.fillStyle = "#000";
-    bump.fillRect(0, 0, size, size);
-    em.fillStyle = "#000";
-    em.fillRect(0, 0, size, size);
+  const guard = new THREE.BoxGeometry(0.34, 0.035, 0.05);
+  guard.translate(0, 0.34, 0);
+  const grip = new THREE.CylinderGeometry(0.017, 0.02, 0.27, 10);
+  grip.translate(0, 0.19, 0);
+  const pommel = new THREE.SphereGeometry(0.036, 12, 8);
+  pommel.translate(0, 0.04, 0);
 
-    // Even row count with an exact fit keeps the texture seamless when tiled.
-    const cols = 16;
-    const w = size / cols;
-    const rows = 26;
-    const h = size / rows;
-
-    // Draw bottom-up so each row overlaps the one below, like real scales.
-    for (let r = rows + 1; r >= -2; r--) {
-      for (let i = -1; i <= cols; i++) {
-        const x = i * w + (r % 2 ? w / 2 : 0);
-        const y = r * h;
-        const drawScale = (ctx: CanvasRenderingContext2D, fill: CanvasGradient | string) => {
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.quadraticCurveTo(x, y + h * 1.25, x + w / 2, y + h * 1.55);
-          ctx.quadraticCurveTo(x + w, y + h * 1.25, x + w, y);
-          ctx.closePath();
-          ctx.fillStyle = fill;
-          ctx.fill();
-        };
-        const jitter = 0.85 + random() * 0.3;
-
-        const g = color.createRadialGradient(x + w / 2, y + h * 0.3, 2, x + w / 2, y + h * 0.7, w * 0.8);
-        g.addColorStop(0, `rgba(${255 * jitter},${255 * jitter},${255 * jitter},1)`);
-        g.addColorStop(1, "rgba(70,70,70,1)");
-        drawScale(color, g);
-
-        const b = bump.createRadialGradient(x + w / 2, y + h * 0.4, 1, x + w / 2, y + h * 0.9, w * 0.75);
-        b.addColorStop(0, "#fff");
-        b.addColorStop(1, "#222");
-        drawScale(bump, b);
-
-        // Glowing seam along the scale edge.
-        em.beginPath();
-        em.moveTo(x, y);
-        em.quadraticCurveTo(x, y + h * 1.25, x + w / 2, y + h * 1.55);
-        em.quadraticCurveTo(x + w, y + h * 1.25, x + w, y);
-        em.strokeStyle = `rgba(255,255,255,${0.35 + random() * 0.5})`;
-        em.lineWidth = 2.2;
-        em.shadowColor = "#fff";
-        em.shadowBlur = 6;
-        em.stroke();
-        drawScale(em, "rgba(0,0,0,0.92)");
-      }
-    }
-
-    const tex = (c: HTMLCanvasElement, srgb = false) => {
-      const t = new THREE.CanvasTexture(c);
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.repeat.set(2, 2);
-      t.anisotropy = 8;
-      if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-      return t;
-    };
-    return { map: tex(colorC, true), bumpMap: tex(bumpC), emissiveMap: tex(emC, true) };
-  }, []);
+  const parts = [bladeGeo, guard, grip, pommel].map((g) => {
+    const n = g.index ? g.toNonIndexed() : g;
+    n.deleteAttribute("uv");
+    return n;
+  });
+  const merged = mergeGeometries(parts)!;
+  merged.computeVertexNormals();
+  return merged;
 }
 
-function DragonEgg({ house }: { house: House }) {
-  const mesh = useRef<THREE.Mesh>(null);
-  const mat = useRef<THREE.MeshPhysicalMaterial>(null);
-  const rim = useRef<THREE.PointLight>(null);
-  const textures = useScaleTextures();
-  const { viewport, pointer } = useThree();
+type SwordXf = { p: THREE.Vector3; r: THREE.Euler; s: number; w: number; tint: number };
 
-  const geometry = useMemo(() => {
-    const pts: THREE.Vector2[] = [];
-    const n = 96;
-    for (let i = 0; i <= n; i++) {
-      const t = i / n;
-      const y = -Math.cos(Math.PI * t) * 1.4;
-      // Egg profile: slightly fuller toward the base.
-      const r = Math.sin(Math.PI * t) * 0.95 * (1 - 0.13 * (y / 1.4));
-      pts.push(new THREE.Vector2(Math.max(r, 0.0001), y));
-    }
-    const g = new THREE.LatheGeometry(pts, 128);
-    g.computeVertexNormals();
-    return g;
-  }, []);
+/* Lays out ~150 swords into the silhouette of the Iron Throne. */
+function buildThrone(): SwordXf[] {
+  const rand = rng(1337);
+  const out: SwordXf[] = [];
+  const add = (p: THREE.Vector3, r: THREE.Euler, s: number) => out.push({ p, r, s, w: 0.85 + rand() * 0.25, tint: 0.55 + rand() * 0.45 });
 
-  useFrame((state, dt) => {
-    const look = LOOKS[house];
-    const k = 1 - Math.pow(0.02, dt);
-    if (mat.current) {
-      mat.current.color.lerp(look.egg, k);
-      mat.current.emissive.lerp(look.emissive, k);
-      mat.current.emissiveIntensity = THREE.MathUtils.lerp(mat.current.emissiveIntensity, look.emissiveIntensity, k);
-      mat.current.metalness = THREE.MathUtils.lerp(mat.current.metalness, look.metalness, k);
-      mat.current.roughness = THREE.MathUtils.lerp(mat.current.roughness, look.roughness, k);
-      mat.current.iridescence = THREE.MathUtils.lerp(mat.current.iridescence, look.iridescence, k);
-      mat.current.envMapIntensity = THREE.MathUtils.lerp(mat.current.envMapIntensity, look.env, k);
-      // Slow "breathing" glow in the seams.
-      mat.current.emissiveIntensity *= 0.85 + Math.sin(state.clock.elapsedTime * 1.4) * 0.15;
+  // The great fan of blades behind the seat — tallest at the centre.
+  const layers = [
+    { z: -0.48, count: 34, spread: 0.42, tall: 1.2, tilt: -0.08 },
+    { z: -0.58, count: 30, spread: 0.55, tall: 0.95, tilt: -0.14 },
+    { z: -0.68, count: 26, spread: 0.7, tall: 0.6, tilt: -0.22 },
+    { z: -0.78, count: 20, spread: 0.85, tall: 0.3, tilt: -0.3 },
+  ];
+  for (const L of layers) {
+    for (let i = 0; i < L.count; i++) {
+      const t = i / (L.count - 1) - 0.5; // -0.5 … 0.5
+      const a = t * L.spread * 2 + (rand() - 0.5) * 0.08;
+      const center = Math.cos(t * Math.PI);
+      const s = (0.7 + L.tall * center * center) * (0.88 + rand() * 0.2);
+      const base = new THREE.Vector3(Math.sin(a) * 0.5 + t * 0.5 + (rand() - 0.5) * 0.06, 0.95 + rand() * 0.06, L.z + (rand() - 0.5) * 0.08);
+      add(base, new THREE.Euler(L.tilt + (rand() - 0.5) * 0.08, (rand() - 0.5) * 0.5, -a), s);
     }
-    if (rim.current) rim.current.color.lerp(look.rim, k);
-    if (mesh.current) {
-      mesh.current.rotation.y += dt * 0.18;
-      const g = mesh.current.parent!;
-      g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, -pointer.y * 0.25, 0.05);
-      g.rotation.z = THREE.MathUtils.lerp(g.rotation.z, -pointer.x * 0.12, 0.05);
+  }
+
+  // Blades plunged downward around the seat — the legs of the throne.
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 9; i++) {
+      const z = -0.42 + i * 0.1 + (rand() - 0.5) * 0.04;
+      add(
+        new THREE.Vector3(side * (0.62 + rand() * 0.06), 1.52 + rand() * 0.12, z),
+        new THREE.Euler((rand() - 0.5) * 0.12, (rand() - 0.5) * 0.6, Math.PI + side * (0.08 + rand() * 0.1)),
+        0.55 + rand() * 0.1,
+      );
     }
+  }
+  // Front apron of blades beneath the seat edge.
+  for (let i = 0; i < 12; i++) {
+    const x = -0.55 + i * 0.1 + (rand() - 0.5) * 0.03;
+    add(
+      new THREE.Vector3(x, 1.5 + rand() * 0.1, 0.5 + rand() * 0.04),
+      new THREE.Euler(0.08 + rand() * 0.1, (rand() - 0.5) * 0.4, Math.PI + (rand() - 0.5) * 0.15),
+      0.52 + rand() * 0.08,
+    );
+  }
+
+  // Armrests: blades pointing forward with pommels jutting out.
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 7; i++) {
+      add(
+        new THREE.Vector3(side * (0.62 + (rand() - 0.5) * 0.12), 1.22 + i * 0.035, -0.55),
+        new THREE.Euler(Math.PI / 2 + (rand() - 0.5) * 0.2, 0, side * (0.1 + rand() * 0.25)),
+        0.55 + rand() * 0.12,
+      );
+    }
+  }
+
+  // Swords strewn over the dais steps.
+  for (let i = 0; i < 26; i++) {
+    const ang = rand() * Math.PI * 2;
+    const rad = 0.95 + rand() * 0.35;
+    const step = rad > 1.12 ? 0.16 : 0.31;
+    add(
+      new THREE.Vector3(Math.cos(ang) * rad, step + 0.02, Math.sin(ang) * rad * 0.85),
+      new THREE.Euler(Math.PI / 2 + (rand() - 0.5) * 0.15, 0, rand() * Math.PI * 2),
+      0.45 + rand() * 0.2,
+    );
+  }
+  return out;
+}
+
+function IronThrone({ house }: { house: House }) {
+  const swords = useRef<THREE.InstancedMesh>(null);
+  const steel = useRef<THREE.MeshStandardMaterial>(null);
+  const geometry = useMemo(() => makeSwordGeometry(), []);
+  const layout = useMemo(() => buildThrone(), []);
+
+  useLayoutEffect(() => {
+    const m = swords.current;
+    if (!m) return;
+    const o = new THREE.Object3D();
+    const c = new THREE.Color();
+    layout.forEach((x, i) => {
+      o.position.copy(x.p);
+      o.rotation.copy(x.r);
+      // Stretch length only, so long blades stay slender.
+      o.scale.set(x.w, x.s, x.w);
+      o.updateMatrix();
+      m.setMatrixAt(i, o.matrix);
+      m.setColorAt(i, c.setScalar(x.tint));
+    });
+    m.instanceMatrix.needsUpdate = true;
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+  }, [layout]);
+
+  useFrame((_, dt) => {
+    steel.current?.color.lerp(LOOKS[house].steel, 1 - Math.pow(0.05, dt));
   });
 
-  const wide = viewport.aspect > 1.1;
-  const scale = wide ? 1 : Math.min(0.55, viewport.width / 3.2);
-  const position: [number, number, number] = wide ? [viewport.width * 0.2, -0.05, 0] : [0, viewport.height * 0.22, 0];
-
   return (
-    <group position={position} scale={scale}>
-      <Float speed={1.4} rotationIntensity={0.15} floatIntensity={0.6}>
-        <group rotation={[0, 0, 0.12]}>
-          <mesh ref={mesh} geometry={geometry} castShadow>
-            <meshPhysicalMaterial
-              ref={mat}
-              map={textures.map}
-              bumpMap={textures.bumpMap}
-              bumpScale={3}
-              emissiveMap={textures.emissiveMap}
-              color={LOOKS[house].egg}
-              emissive={LOOKS[house].emissive}
-              emissiveIntensity={LOOKS[house].emissiveIntensity}
-              metalness={LOOKS[house].metalness}
-              roughness={LOOKS[house].roughness}
-              clearcoat={1}
-              clearcoatRoughness={0.15}
-              iridescence={LOOKS[house].iridescence}
-              envMapIntensity={LOOKS[house].env}
-            />
-          </mesh>
-        </group>
-      </Float>
-      <pointLight ref={rim} position={[-2.2, 1.5, -1.5]} intensity={30} distance={8} color={LOOKS[house].rim} />
+    <group>
+      <instancedMesh ref={swords} args={[geometry, undefined, layout.length]} castShadow receiveShadow>
+        <meshStandardMaterial ref={steel} color={LOOKS.stark.steel} metalness={0.95} roughness={0.3} envMapIntensity={1.1} />
+      </instancedMesh>
+
+      {/* Seat and backing, forged dark iron */}
+      <mesh position={[0, 1.2, -0.05]} castShadow receiveShadow>
+        <boxGeometry args={[1.15, 0.16, 0.95]} />
+        <meshStandardMaterial color="#1b1c1f" metalness={0.8} roughness={0.45} />
+      </mesh>
+      <mesh position={[0, 1.02, -0.05]} castShadow>
+        <boxGeometry args={[1.05, 0.2, 0.85]} />
+        <meshStandardMaterial color="#121315" metalness={0.7} roughness={0.55} />
+      </mesh>
+
+      {/* Stone dais */}
+      {[
+        [2.9, 0.16, 2.5, 0.08],
+        [2.35, 0.15, 2.0, 0.235],
+        [1.8, 0.15, 1.6, 0.385],
+      ].map(([w, h, d, y], i) => (
+        <mesh key={i} position={[0, y, -0.1]} castShadow receiveShadow>
+          <boxGeometry args={[w, h, d]} />
+          <meshStandardMaterial color="#1c1e22" roughness={0.85} metalness={0.1} />
+        </mesh>
+      ))}
     </group>
+  );
+}
+
+/* A soft volumetric shaft of light falling onto the throne. */
+function LightBeam({ house }: { house: House }) {
+  const mat = useRef<THREE.ShaderMaterial>(null);
+  const uniforms = useMemo(() => ({ uColor: { value: LOOKS.stark.beam.clone() }, uTime: { value: 0 } }), []);
+  useFrame((s, dt) => {
+    if (!mat.current) return;
+    mat.current.uniforms.uColor.value.lerp(LOOKS[house].beam, 1 - Math.pow(0.05, dt));
+    mat.current.uniforms.uTime.value = s.clock.elapsedTime;
+  });
+  return (
+    <mesh position={[0, 4.6, 0.2]}>
+      <cylinderGeometry args={[0.25, 1.9, 9.2, 48, 1, true]} />
+      <shaderMaterial
+        ref={mat}
+        uniforms={uniforms}
+        transparent
+        depthWrite={false}
+        side={THREE.DoubleSide}
+        blending={THREE.AdditiveBlending}
+        vertexShader={/* glsl */ `
+          varying vec2 vUv;
+          varying vec3 vN;
+          varying vec3 vView;
+          void main() {
+            vUv = uv;
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            vN = normalize(normalMatrix * normal);
+            vView = normalize(-mv.xyz);
+            gl_Position = projectionMatrix * mv;
+          }
+        `}
+        fragmentShader={/* glsl */ `
+          uniform vec3 uColor;
+          uniform float uTime;
+          varying vec2 vUv;
+          varying vec3 vN;
+          varying vec3 vView;
+          void main() {
+            float edge = pow(abs(dot(vN, vView)), 2.2);
+            float h = smoothstep(0.0, 0.35, vUv.y) * smoothstep(1.0, 0.55, vUv.y);
+            float dust = 0.85 + 0.15 * sin(vUv.x * 40.0 + uTime * 0.6) * sin(vUv.y * 18.0 - uTime * 0.4);
+            gl_FragColor = vec4(uColor, edge * h * dust * 0.09);
+          }
+        `}
+      />
+    </mesh>
   );
 }
 
@@ -216,9 +273,9 @@ function Particles({ house, count }: { house: House; count: number }) {
     const pos = new Float32Array(count * 3);
     const seed = new Float32Array(count);
     for (let i = 0; i < count; i++) {
-      pos[i * 3] = (random() - 0.5) * 16;
-      pos[i * 3 + 1] = (random() - 0.5) * 10;
-      pos[i * 3 + 2] = (random() - 0.5) * 8 - 1;
+      pos[i * 3] = (random() - 0.5) * 18;
+      pos[i * 3 + 1] = random() * 10;
+      pos[i * 3 + 2] = (random() - 0.5) * 10;
       seed[i] = random();
     }
     g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
@@ -229,11 +286,10 @@ function Particles({ house, count }: { house: House; count: number }) {
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
-      uDir: { value: LOOKS[house].direction },
-      uColor: { value: LOOKS[house].particle.clone() },
+      uDir: { value: LOOKS.stark.direction as number },
+      uColor: { value: LOOKS.stark.particle.clone() },
       uPixelRatio: { value: 1 },
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -249,7 +305,7 @@ function Particles({ house, count }: { house: House; count: number }) {
   });
 
   return (
-    <points geometry={geometry}>
+    <points geometry={geometry} frustumCulled={false}>
       <shaderMaterial
         ref={mat}
         uniforms={uniforms}
@@ -264,15 +320,15 @@ function Particles({ house, count }: { house: House; count: number }) {
           varying float vAlpha;
           void main() {
             vec3 p = position;
-            float speed = 0.25 + aSeed * 0.45;
-            p.y = mod(p.y + uDir * uTime * speed + 5.0, 10.0) - 5.0;
-            p.x += sin(uTime * (0.3 + aSeed) + aSeed * 40.0) * 0.35;
-            p.z += cos(uTime * 0.4 + aSeed * 20.0) * 0.2;
+            float speed = 0.2 + aSeed * 0.5;
+            p.y = mod(p.y + uDir * uTime * speed, 10.0) - 0.5;
+            p.x += sin(uTime * (0.3 + aSeed) + aSeed * 40.0) * 0.4;
+            p.z += cos(uTime * 0.4 + aSeed * 20.0) * 0.25;
             vec4 mv = modelViewMatrix * vec4(p, 1.0);
             gl_Position = projectionMatrix * mv;
-            float flicker = 0.6 + 0.4 * sin(uTime * 3.0 + aSeed * 60.0);
-            vAlpha = mix(0.35, 1.0, aSeed) * mix(1.0, flicker, step(0.0, uDir));
-            gl_PointSize = (6.0 + aSeed * 14.0) * uPixelRatio / -mv.z;
+            float flicker = 0.55 + 0.45 * sin(uTime * 3.0 + aSeed * 60.0);
+            vAlpha = mix(0.3, 1.0, aSeed) * mix(1.0, flicker, step(0.0, uDir));
+            gl_PointSize = (8.0 + aSeed * 16.0) * uPixelRatio / -mv.z;
           }
         `}
         fragmentShader={/* glsl */ `
@@ -286,6 +342,88 @@ function Particles({ house, count }: { house: House; count: number }) {
         `}
       />
     </points>
+  );
+}
+
+/* Lights, fog and the camera — cinematic push-in on scroll, parallax on pointer. */
+function Stage({ house, children }: { house: House; children: React.ReactNode }) {
+  const viewport = useThree((s) => s.viewport);
+  const fog = useRef<THREE.FogExp2>(null);
+  const bg = useRef<THREE.Color>(null);
+  const rimL = useRef<THREE.PointLight>(null);
+  const rimR = useRef<THREE.PointLight>(null);
+  const key = useRef<THREE.SpotLight>(null);
+  const target = useMemo(() => new THREE.Object3D(), []);
+  const look = useRef(new THREE.Vector3());
+
+  const wide = viewport.aspect > 1.1;
+  const offsetX = wide ? 2.4 : 0;
+
+  useFrame((state, dt) => {
+    const L = LOOKS[house];
+    const k = 1 - Math.pow(0.05, dt);
+    fog.current?.color.lerp(L.fog, k);
+    bg.current?.lerp(L.fog, k);
+    const { camera, pointer } = state;
+
+    const t = state.clock.elapsedTime;
+    const flick = L.flicker * (Math.sin(t * 13) * 0.08 + Math.sin(t * 7.3) * 0.1 + Math.sin(t * 23) * 0.05);
+    for (const l of [rimL.current, rimR.current]) {
+      if (!l) continue;
+      l.color.lerp(L.rim, k);
+      l.intensity = THREE.MathUtils.lerp(l.intensity, L.rimIntensity * (1 + flick), k * 2);
+    }
+    key.current?.color.lerp(L.key, k);
+
+    // Scroll progress through the hero: 0 at top, 1 once scrolled a full screen.
+    const s = Math.min(window.scrollY / window.innerHeight, 1);
+    const cx = offsetX * 0.15 + pointer.x * 0.45;
+    const cy = (wide ? 2.4 : 3.0) + pointer.y * 0.25 - s * 0.5;
+    const cz = (wide ? 10.8 : 12.5) - s * 2.5;
+    camera.position.x += (cx - camera.position.x) * 0.05;
+    camera.position.y += (cy - camera.position.y) * 0.05;
+    camera.position.z += (cz - camera.position.z) * 0.05;
+    look.current.set(offsetX * 0.55, wide ? 1.85 : 0.6, 0);
+    camera.lookAt(look.current);
+  });
+
+  return (
+    <>
+      {/* Opaque backdrop in the fog colour, so floor and sky meet with no horizon line. */}
+      <color ref={bg} attach="background" args={[LOOKS.stark.fog]} />
+      <fogExp2 ref={fog} attach="fog" args={[LOOKS.stark.fog.getHex(), 0.075]} />
+      <ambientLight intensity={0.08} />
+      <primitive object={target} position={[offsetX, 1, 0]} />
+      <spotLight
+        ref={key}
+        position={[offsetX, 9, 2.5]}
+        target={target}
+        angle={0.42}
+        penumbra={0.9}
+        intensity={180}
+        decay={1.6}
+        castShadow
+        shadow-mapSize={[1024, 1024]}
+        shadow-bias={-0.0004}
+      />
+      <pointLight ref={rimL} position={[offsetX - 2.4, 2.6, -2.2]} intensity={60} distance={9} />
+      <pointLight ref={rimR} position={[offsetX + 2.4, 2.2, -2.0]} intensity={60} distance={9} />
+      <Environment resolution={256}>
+        <Lightformer form="rect" intensity={1.6} position={[0, 5, -3]} scale={[10, 2, 1]} />
+        <Lightformer form="circle" intensity={0.8} position={[-5, 1, 2]} rotation-y={Math.PI / 2} scale={3} />
+        <Lightformer form="circle" intensity={0.6} position={[5, 2, 1]} rotation-y={-Math.PI / 2} scale={3} />
+      </Environment>
+
+      <group position={[offsetX, 0, 0]} scale={wide ? 1 : 0.9}>
+        {children}
+        <LightBeam house={house} />
+      </group>
+
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0, 0]} receiveShadow>
+        <circleGeometry args={[30, 64]} />
+        <meshStandardMaterial color="#0d0e10" roughness={0.55} metalness={0.3} />
+      </mesh>
+    </>
   );
 }
 
@@ -306,23 +444,19 @@ export default function HeroScene({ house }: { house: House }) {
   return (
     <div ref={wrap} className="absolute inset-0">
       <Canvas
+        shadows={!mobile}
         frameloop={visible ? "always" : "never"}
         dpr={[1, mobile ? 1.5 : 2]}
-        camera={{ position: [0, 0, 6], fov: 35 }}
+        camera={{ position: [0, 2.4, 11], fov: 35 }}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       >
-        <ambientLight intensity={0.15} />
-        <directionalLight position={[3, 4, 5]} intensity={1.6} />
-        <Environment resolution={256}>
-          <Lightformer form="rect" intensity={2.5} position={[0, 4, -2]} scale={[8, 1.5, 1]} />
-          <Lightformer form="circle" intensity={0.8} position={[-5, 0, 1]} rotation-y={Math.PI / 2} scale={3} />
-          <Lightformer form="ring" intensity={2} position={[4, 1, 3]} scale={2} />
-        </Environment>
-        <DragonEgg house={house} />
-        <Particles house={house} count={mobile ? 450 : 1400} />
+        <Stage house={house}>
+          <IronThrone house={house} />
+        </Stage>
+        <Particles house={house} count={mobile ? 500 : 1600} />
         <EffectComposer multisampling={0}>
-          <Bloom mipmapBlur luminanceThreshold={0.55} luminanceSmoothing={0.2} intensity={1.1} />
-          <Vignette offset={0.25} darkness={0.75} />
+          <Bloom mipmapBlur luminanceThreshold={0.7} luminanceSmoothing={0.25} intensity={0.9} />
+          <Vignette offset={0.2} darkness={0.85} />
         </EffectComposer>
       </Canvas>
     </div>

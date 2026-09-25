@@ -66,7 +66,7 @@ body {
   font-family: var(--font-inter), system-ui, sans-serif;
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 ::selection {
@@ -193,4 +193,144 @@ body {
 ::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
+}
+
+/* ------------------------------------------------------------------
+   Custom cursor (fine pointers only)
+   ------------------------------------------------------------------ */
+.cursor-layer { display: none; }
+html.custom-cursor .cursor-layer { display: block; }
+html.custom-cursor,
+html.custom-cursor * {
+  cursor: none !important;
+}
+.cursor-dot,
+.cursor-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  border-radius: 999px;
+  will-change: transform;
+}
+.cursor-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--accent-2);
+  box-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent-glow);
+  transition: transform 0.15s ease-out, background 0.6s;
+}
+.cursor-ring {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--accent);
+  opacity: 0.7;
+  transition: background 0.3s, border-color 0.3s, opacity 0.3s;
+}
+.cursor-ring::before,
+.cursor-ring::after {
+  /* tiny diamond notches at the ring's poles, like a compass rose */
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  background: var(--accent);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.cursor-ring::before { top: 0; }
+.cursor-ring::after { top: 100%; }
+.cursor-ring[data-hover="1"] {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: var(--accent-2);
+  opacity: 1;
+}
+
+[data-magnetic] {
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s, background 0.35s, color 0.35s, border-color 0.35s;
+}
+
+/* Metallic heading with a slow travelling glint. Applied per-character so the
+   split-text animation keeps the gradient. */
+.sheen [data-char],
+.sheen > span > span {
+  background-image: linear-gradient(110deg, transparent 38%, rgba(255, 255, 255, 0.85) 50%, transparent 62%), var(--metal);
+  background-size: 250% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: glint 7s ease-in-out infinite;
+  /* Offset per letter so the glint sweeps across the word. */
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+.sheen {
+  filter: drop-shadow(0 2px 18px var(--accent-glow));
+}
+@keyframes glint {
+  0%, 55% { background-position: 150% 0, 0 0; }
+  100% { background-position: -150% 0, 0 0; }
+}
+
+/* Engraved corner flourishes on every panel */
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  pointer-events: none;
+  border-radius: 10px;
+  opacity: 0.55;
+  --c: var(--accent);
+  --l: 16px;
+  background:
+    linear-gradient(var(--c), var(--c)) top left / var(--l) 1px,
+    linear-gradient(var(--c), var(--c)) top left / 1px var(--l),
+    linear-gradient(var(--c), var(--c)) top right / var(--l) 1px,
+    linear-gradient(var(--c), var(--c)) top right / 1px var(--l),
+    linear-gradient(var(--c), var(--c)) bottom left / var(--l) 1px,
+    linear-gradient(var(--c), var(--c)) bottom left / 1px var(--l),
+    linear-gradient(var(--c), var(--c)) bottom right / var(--l) 1px,
+    linear-gradient(var(--c), var(--c)) bottom right / 1px var(--l);
+  background-repeat: no-repeat;
+  transition: opacity 0.4s, inset 0.4s;
+}
+.panel:hover::before {
+  opacity: 1;
+  inset: 6px;
+}
+
+/* Section atmosphere: faint drifting fog behind content */
+.fog-band {
+  /* Full-bleed and unclipped, so the blurred fog never shows a hard edge. */
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: -1;
+}
+.fog-band::before,
+.fog-band::after {
+  content: "";
+  position: absolute;
+  width: 90%;
+  height: 45%;
+  left: 5%;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.08;
+  background: var(--accent);
+  animation: drift 26s ease-in-out infinite alternate;
+}
+.fog-band::before { top: 10%; }
+.fog-band::after { bottom: 0; background: var(--accent-2); opacity: 0.04; animation-duration: 34s; animation-direction: alternate-reverse; }
+@keyframes drift {
+  from { transform: translateX(-8%) scaleY(0.8); }
+  to { transform: translateX(8%) scaleY(1.1); }
+}
+
+.outline-text {
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--accent) 55%, transparent);
 }

@@ -3,8 +3,9 @@ import SectionHeading from "../SectionHeading";
 
 export default function Skills() {
   return (
-    <section id="skills" className="relative mx-auto max-w-6xl px-5 py-24 md:px-10 md:py-32">
-      <SectionHeading eyebrow="The Armory" title="Technical Arsenal" />
+    <section id="skills" className="relative isolate mx-auto max-w-6xl px-5 py-24 md:px-10 md:py-32">
+      <div className="fog-band" aria-hidden />
+      <SectionHeading label="Skills" title="The Armory" intro="Weapons forged and tempered across compilers, systems, databases and the web." />
       <div className="grid gap-6 sm:grid-cols-2">
         {skills.map((s) => (
           <div key={s.group} data-reveal className="panel p-7">

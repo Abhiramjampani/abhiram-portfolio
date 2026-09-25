@@ -38,8 +38,9 @@ export default function Experience() {
   }, []);
 
   return (
-    <section id="experience" ref={root} className="relative mx-auto max-w-6xl px-5 py-24 md:px-10 md:py-32">
-      <SectionHeading eyebrow="Realms Served" title="Experience" />
+    <section id="experience" ref={root} className="relative isolate mx-auto max-w-6xl px-5 py-24 md:px-10 md:py-32">
+      <div className="fog-band" aria-hidden />
+      <SectionHeading label="Experience" title="The Great Houses" intro="The houses I have sworn my sword to." />
 
       <div data-road-track className="relative">
         <div className="absolute left-[15px] top-2 bottom-2 w-px bg-[var(--border)] md:left-1/2">
