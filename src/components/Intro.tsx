@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
-import { useHouse } from "@/lib/house";
 
-const NAME = "ABHIRAM JAMPANI";
-const NUMERALS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+const HOUSE_WORDS = [
+  { house: "stark", words: "Winter is Coming" },
+  { house: "targaryen", words: "Fire and Blood" },
+] as const;
 
 // Wind strength for the intro weather; the timeline gusts it as the house words land.
 const wind = { gust: 0 };
@@ -24,12 +25,11 @@ function releaseHero() {
 }
 
 /**
- * Opening title sequence: a spinning astrolabe in the snow (or embers),
- * the name forged letter by letter, the house words — then the gates open.
- * The full sequence plays once per session; later loads just open the gates.
+ * Opening sequence: the house words appear on the closed gates in the snow
+ * (or embers), then the gates open. The full sequence plays once per
+ * session; later loads just open the gates.
  */
 export default function Intro() {
-  const { house } = useHouse();
   const root = useRef<HTMLDivElement>(null);
   const weather = useRef<HTMLCanvasElement>(null);
   const [gone, setGone] = useState(false);
@@ -61,24 +61,16 @@ export default function Intro() {
         return;
       }
       if (!seen) {
-        tl.to("[data-astro]", { autoAlpha: 1, scale: 1, rotate: 0, duration: 2.4, ease: "power2.out" }, 0)
-          .to("[data-glow]", { autoAlpha: 1, duration: 2, ease: "power1.out" }, 0.3)
-          .to(
-            "[data-ichar]",
-            { autoAlpha: 1, filter: "blur(0px)", y: 0, scale: 1, duration: 1.3, stagger: 0.055, ease: "power3.out" },
-            0.7,
-          )
-          .to("[data-irole]", { autoAlpha: 1, letterSpacing: "0.42em", duration: 1.4, ease: "power3.out" }, 1.55)
-          .to("[data-iline]", { scaleX: 1, duration: 1.2, ease: "power3.inOut" }, 1.8)
+        tl.to("[data-glow]", { autoAlpha: 1, duration: 1.6, ease: "power1.out" }, 0.2)
           .to(
             "[data-iword]",
-            { autoAlpha: 1, filter: "blur(0px)", y: 0, duration: 0.9, stagger: 0.05, ease: "power2.out" },
-            2.3,
+            { autoAlpha: 1, filter: "blur(0px)", y: 0, duration: 1.1, stagger: 0.07, ease: "power2.out" },
+            0.6,
           )
-          .to("[data-iwords]", { filter: "brightness(1.6)", duration: 0.55, yoyo: true, repeat: 1, ease: "sine.inOut" }, 3.2)
-          .to(wind, { gust: 1, duration: 0.5, ease: "power2.out" }, 2.2)
-          .to(wind, { gust: 0, duration: 1.8, ease: "power2.inOut" }, 2.8)
-          .addLabel("open", 4.6);
+          .to(wind, { gust: 1, duration: 0.5, ease: "power2.out" }, 0.5)
+          .to(wind, { gust: 0, duration: 1.8, ease: "power2.inOut" }, 1.1)
+          .to("[data-iwords]", { filter: "brightness(1.6)", duration: 0.55, yoyo: true, repeat: 1, ease: "sine.inOut" }, 2.1)
+          .addLabel("open", 3.4);
       } else {
         tl.set("[data-istage]", { autoAlpha: 0 }).addLabel("open", 0.15);
       }
@@ -180,8 +172,6 @@ export default function Intro() {
 
   if (gone) return null;
 
-  const words = house === "stark" ? "Winter is Coming" : "Fire and Blood";
-
   return (
     <div ref={root} className="intro fixed inset-0 z-[100] overflow-hidden" onClick={() => skip.current()}>
       {/* The gates */}
@@ -194,60 +184,28 @@ export default function Intro() {
       <div data-istage className="absolute inset-0 flex flex-col items-center justify-center px-6">
         <div data-glow className="intro-glow" />
 
-        {/* Astrolabe */}
-        <div className="astro-wrap">
-        <div data-astro className="astro">
-          <div className="astro-body">
-            <div className="ring ring-outer">
-              {NUMERALS.map((n, i) => (
-                <span
-                  key={n}
-                  className="numeral"
-                  style={{ transform: `translate(-50%, -50%) rotate(${i * 30}deg) translateY(calc(var(--R) * -1))` }}
-                >
-                  {n}
-                </span>
-              ))}
-            </div>
-            <div className="ring ring-a" />
-            <div className="ring ring-b" />
-            <div className="ring ring-c" />
-            <div className="ring ring-d" />
-            <div className="astro-core" />
-          </div>
-        </div>
-        </div>
-
-        <div className="relative z-10 flex flex-col items-center text-center">
-          <h1 aria-label="Abhiram Jampani" className="font-display text-[11vw] font-semibold leading-none tracking-[0.1em] sm:text-7xl md:text-8xl">
-            {NAME.split(" ").map((word, wi, all) => {
-              const offset = all.slice(0, wi).join("").length;
-              return (
-                // Words never break internally; the line may wrap between them.
-                <span key={wi} className="inline-block whitespace-nowrap">
-                  {word.split("").map((ch, i) => (
-                    <span key={i} data-ichar className="ichar sheen-char" aria-hidden style={{ ["--i" as string]: offset + i }}>
-                      {ch}
-                    </span>
-                  ))}
-                  {wi < all.length - 1 && <span className="inline-block w-[0.4em]" />}
-                </span>
-              );
-            })}
-          </h1>
-          <p data-irole className="irole mt-12 text-[0.7rem] uppercase text-muted md:text-sm">
-            Compiler Engineer&nbsp;·&nbsp;NVIDIA
-          </p>
-          <div data-iline className="iline mt-8" />
-          <p data-iwords className="iwords font-display mt-7 text-2xl tracking-[0.28em] md:text-4xl" suppressHydrationWarning>
-            {words.split("").map((ch, i) => (
-              // Index keys keep DOM nodes stable if the house resolves after hydration.
-              <span key={i} data-iword className="iword">
-                {ch === " " ? "\u00a0" : ch}
+        {/* Both house words are rendered; CSS shows the one matching the theme set before paint,
+            so nothing is swapped in after the animation has captured its targets. */}
+        {HOUSE_WORDS.map(({ house: h, words }) => (
+          <p
+            key={h}
+            data-iwords
+            aria-label={words}
+            className={`iwords iwords-${h} font-display relative z-10 text-center text-4xl leading-tight tracking-[0.22em] sm:text-5xl md:text-7xl`}
+          >
+            {words.split(" ").map((word, wi, all) => (
+              // Words never break internally; the line may wrap between them.
+              <span key={wi} aria-hidden className="inline-block whitespace-nowrap">
+                {word.split("").map((ch, ci) => (
+                  <span key={ci} data-iword className="iword">
+                    {ch}
+                  </span>
+                ))}
+                {wi < all.length - 1 && <span className="inline-block w-[0.45em]" />}
               </span>
             ))}
           </p>
-        </div>
+        ))}
       </div>
 
       <button
