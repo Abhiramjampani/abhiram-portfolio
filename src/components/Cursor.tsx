@@ -3,13 +3,12 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Custom cursor: a sharp dot, a trailing ring that swells over links, and a
- * trail of snowflakes (Stark) or embers (Targaryen). Also powers
- * `data-magnetic` buttons, which lean toward the pointer.
+ * Custom cursor: a small glowing point that leaves a faint trail of
+ * snowflakes (Stark) or embers (Targaryen). Also powers `data-magnetic`
+ * buttons, which lean toward the pointer.
  */
 export default function Cursor() {
   const dot = useRef<HTMLDivElement>(null);
-  const ring = useRef<HTMLDivElement>(null);
   const trail = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -27,7 +26,6 @@ export default function Cursor() {
     window.addEventListener("resize", resize);
 
     const mouse = { x: -100, y: -100 };
-    const ringPos = { x: -100, y: -100 };
     let hover = false;
     let down = false;
     type Spark = { x: number; y: number; vx: number; vy: number; life: number; r: number };
@@ -40,7 +38,7 @@ export default function Cursor() {
       mouse.x = e.clientX;
       mouse.y = e.clientY;
       const speed = Math.min(Math.hypot(dx, dy), 60);
-      const n = speed > 4 ? Math.ceil(speed / 14) : 0;
+      const n = speed > 6 ? Math.ceil(speed / 28) : 0;
       for (let i = 0; i < n; i++) {
         sparks.push({
           x: mouse.x + (Math.random() - 0.5) * 6,
@@ -51,7 +49,7 @@ export default function Cursor() {
           r: 0.8 + Math.random() * 1.8,
         });
       }
-      if (sparks.length > 160) sparks.splice(0, sparks.length - 160);
+      if (sparks.length > 70) sparks.splice(0, sparks.length - 70);
 
       const target = e.target as HTMLElement;
       hover = !!target.closest("a, button, [data-cursor]");
@@ -79,13 +77,10 @@ export default function Cursor() {
     let raf = 0;
     const loop = () => {
       const fire = document.documentElement.dataset.theme === "targaryen";
-      ringPos.x += (mouse.x - ringPos.x) * 0.18;
-      ringPos.y += (mouse.y - ringPos.y) * 0.18;
-      const scale = (hover ? 1.9 : 1) * (down ? 0.8 : 1);
-      if (dot.current) dot.current.style.transform = `translate3d(${mouse.x}px, ${mouse.y}px, 0) translate(-50%, -50%) scale(${hover ? 0 : 1})`;
-      if (ring.current) {
-        ring.current.style.transform = `translate3d(${ringPos.x}px, ${ringPos.y}px, 0) translate(-50%, -50%) scale(${scale})`;
-        ring.current.dataset.hover = hover ? "1" : "0";
+      const scale = (hover ? 1.7 : 1) * (down ? 0.7 : 1);
+      if (dot.current) {
+        dot.current.style.transform = `translate3d(${mouse.x}px, ${mouse.y}px, 0) translate(-50%, -50%) scale(${scale})`;
+        dot.current.dataset.hover = hover ? "1" : "0";
       }
 
       ctx.clearRect(0, 0, c.width, c.height);
@@ -100,9 +95,9 @@ export default function Cursor() {
         s.y += s.vy + (fire ? -0.55 : 0.45); // embers rise, snow drifts down
         s.vx *= 0.97;
         s.vy *= 0.97;
-        const a = s.life * (fire ? 0.9 : 0.75);
+        const a = s.life * (fire ? 0.7 : 0.55);
         ctx.beginPath();
-        ctx.arc(s.x * dpr, s.y * dpr, s.r * dpr * (fire ? s.life : 1), 0, Math.PI * 2);
+        ctx.arc(s.x * dpr, s.y * dpr, s.r * 0.7 * dpr * (fire ? s.life : 1), 0, Math.PI * 2);
         ctx.fillStyle = fire
           ? `rgba(255,${Math.round(120 + 100 * s.life)},${Math.round(40 * s.life)},${a})`
           : `rgba(225,240,255,${a})`;
@@ -128,7 +123,6 @@ export default function Cursor() {
   return (
     <div aria-hidden className="cursor-layer pointer-events-none fixed inset-0 z-[200]">
       <canvas ref={trail} className="absolute inset-0 h-full w-full" />
-      <div ref={ring} className="cursor-ring" />
       <div ref={dot} className="cursor-dot" />
     </div>
   );

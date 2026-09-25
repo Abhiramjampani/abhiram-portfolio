@@ -17,14 +17,17 @@ export default function Hero() {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.from("[data-hero]", {
+      // Entrance waits for the intro's gates to begin opening.
+      const enter = gsap.from("[data-hero]", {
         y: 50,
         autoAlpha: 0,
         duration: 1.3,
         ease: "power3.out",
         stagger: 0.12,
-        delay: 2.1, // lands just as the loader lifts
+        paused: true,
       });
+      if (window.__introDone) enter.play();
+      else window.addEventListener("intro-done", () => enter.play(), { once: true });
       // Content drifts up and fades as you scroll into the page.
       gsap.to("[data-hero-content]", {
         yPercent: -25,

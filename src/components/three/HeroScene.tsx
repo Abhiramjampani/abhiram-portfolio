@@ -379,11 +379,12 @@ function Stage({ house, children }: { house: House; children: React.ReactNode })
     const s = Math.min(window.scrollY / window.innerHeight, 1);
     const cx = offsetX * 0.15 + pointer.x * 0.45;
     const cy = (wide ? 2.4 : 3.0) + pointer.y * 0.25 - s * 0.5;
-    const cz = (wide ? 10.8 : 12.5) - s * 2.5;
+    const cz = (wide ? 10.8 : 14.5) - s * 2.5;
     camera.position.x += (cx - camera.position.x) * 0.05;
     camera.position.y += (cy - camera.position.y) * 0.05;
     camera.position.z += (cz - camera.position.z) * 0.05;
-    look.current.set(offsetX * 0.55, wide ? 1.85 : 0.6, 0);
+    // On narrow screens the throne sits in the upper half, clear of the text.
+    look.current.set(offsetX * 0.55, wide ? 1.85 : -0.5, 0);
     camera.lookAt(look.current);
   });
 

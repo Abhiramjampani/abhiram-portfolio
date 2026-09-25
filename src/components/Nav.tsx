@@ -56,7 +56,7 @@ export default function Nav() {
         </ul>
 
         <button
-          onClick={(e) => toggle(e)}
+          onClick={toggle}
           aria-label={`Switch to House ${house === "stark" ? "Targaryen" : "Stark"}`}
           className="group flex items-center gap-2.5 rounded-full border border-[var(--border-strong)] px-3.5 py-1.5 text-[0.68rem] uppercase tracking-[0.2em] text-muted transition-colors hover:text-text"
         >

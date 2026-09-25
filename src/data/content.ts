@@ -12,8 +12,7 @@ export const profile = {
 
 export const about = {
   paragraphs: [
-    "I'm a Compiler Engineer at NVIDIA working on the CUDA toolchain. I do my best work close to the metal — binary formats, concurrency, and correctness in systems where every bug is expensive.",
-    "Before joining full-time, I interned at NVIDIA on the CUDA assembler and disassembler, and at YugabyteDB on CDC (Change Data Capture) for its distributed SQL engine. I hold a B.Tech in Computer Science from IIIT Lucknow.",
+    "I'm a Compiler Engineer at NVIDIA working on CUDA compilers. I do my best work close to the metal — binary formats, concurrency, and correctness in systems where every bug is expensive.",
   ],
   facts: [
     { label: "Current", value: "Compiler Engineer, NVIDIA" },

@@ -5,13 +5,14 @@ import { useCallback, useSyncExternalStore } from "react";
 export type House = "stark" | "targaryen";
 
 const EVENT = "house-change";
+export const TRANSITION_EVENT = "house-transition";
 
 function subscribe(cb: () => void) {
   window.addEventListener(EVENT, cb);
   return () => window.removeEventListener(EVENT, cb);
 }
 
-function getSnapshot(): House {
+export function getHouse(): House {
   return document.documentElement.dataset.theme === "targaryen" ? "targaryen" : "stark";
 }
 
@@ -19,7 +20,8 @@ function getServerSnapshot(): House {
   return "stark";
 }
 
-function apply(next: House) {
+/** Switches the theme immediately. The cinematic overlay calls this at its peak. */
+export function applyHouse(next: House) {
   document.documentElement.dataset.theme = next;
   try {
     localStorage.setItem("house", next);
@@ -28,28 +30,17 @@ function apply(next: House) {
 }
 
 export function useHouse() {
-  const house = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const house = useSyncExternalStore(subscribe, getHouse, getServerSnapshot);
 
-  // Circular reveal from the click point using the View Transitions API when available.
-  const toggle = useCallback((e?: { clientX: number; clientY: number }) => {
-    const next: House = getSnapshot() === "stark" ? "targaryen" : "stark";
-    const doc = document as Document & {
-      startViewTransition?: (cb: () => void) => { ready: Promise<void> };
-    };
-    if (!doc.startViewTransition || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      apply(next);
+  // Stark → Targaryen plays the dragon flight; Targaryen → Stark plays the winter storm.
+  // ThemeTransition listens for this event and applies the theme mid-animation.
+  const toggle = useCallback(() => {
+    const next: House = getHouse() === "stark" ? "targaryen" : "stark";
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      applyHouse(next);
       return;
     }
-    const x = e?.clientX ?? window.innerWidth - 60;
-    const y = e?.clientY ?? 40;
-    const r = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
-    const t = doc.startViewTransition(() => apply(next));
-    t.ready.then(() => {
-      document.documentElement.animate(
-        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${r}px at ${x}px ${y}px)`] },
-        { duration: 900, easing: "cubic-bezier(0.65, 0, 0.35, 1)", pseudoElement: "::view-transition-new(root)" },
-      );
-    });
+    window.dispatchEvent(new CustomEvent(TRANSITION_EVENT, { detail: { next } }));
   }, []);
 
   return { house, toggle };
